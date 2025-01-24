@@ -1,0 +1,161 @@
+#!/bin/bash
+
+# Default arguments
+read_file="cif"
+write_file="run.py"
+format="cif"
+xc="PBE"
+prec="Accurate"
+algo="Normal"
+ismear=0
+sigma=0.05
+encut=900
+kpts="(5,5,1)"
+ediff=1e-6
+ediffg=-0.05
+nelm=100
+ibrion=2
+potim=0.2
+isif=2
+nsw=100
+lreal="auto"
+lwave="True"
+lcharg="True"
+lorbit=11
+ncore=8
+
+# Function to display usage
+function usage() {
+    echo "Usage: $0 [options]"
+    echo ""
+    echo "This script generates a python file for running VASP calculations using ASE."
+    echo ""
+    echo "Options:"
+    echo "--help                        Display this help message."
+    echo "--read-file <file>            Specify read file. Default is 'cif'."
+    echo "--write-file <file>           Specify write file. Default is 'run.py'."
+    echo "--format <format>             Specify file format. Default is 'cif'."
+    echo "--format <format>             Specify file format. Default is 'cif'."
+    echo "--xc <xc>                     Specify exchange-correlation functional. Default is 'PBE'."
+    echo "--prec <prec>                 Specify precision. Default is 'Accurate'."
+    echo "--algo <algo>                 Specify algorithm. Default is 'Normal'."
+    echo "--ismear <ismear>             Specify ISMEAR. Default is 0."
+    echo "--sigma <sigma>               Specify SIGMA. Default is 0.05."
+    echo "--encut <encut>               Specify ENCUT. Default is 900."
+    echo "--kpts <kpts>                 Specify KPOINTS. Default is '(5,5,1)'."
+    echo "--ediff <ediff>               Specify EDIFF. Default is 1e-6."
+    echo "--ediffg <ediffg>             Specify EDIFFG. Default is -0.05."
+    echo "--nelm <nelm>                 Specify NELM. Default is 100."
+    echo "--ibrion <ibrion>             Specify IBRION. Default is 2."
+    echo "--potim <potim>               Specify POTIM. Default is 0.2."
+    echo "--isif <isif>                 Specify ISIF. Default is 2."
+    echo "--nsw <nsw>                   Specify NSW. Default is 100."
+    echo "--lreal <lreal>               Specify LREAL. Default is 'auto'."
+    echo "--lwave <lwave>               Specify LWAVE. Default is 'True'."
+    echo "--lcharg <lcharg>             Specify LCHARG. Default is 'True'."
+    echo "--lorbit <lorbit>             Specify LORBIT. Default is 11."
+    echo "--ncore <ncore>               Specify NCORE. Default is 8."
+    echo ""
+}
+
+# Define options
+TEMP=`getopt -o h --long help,read-file:,write-file:,format:,xc:,prec:,algo:,ismear:,sigma:,encut:,kpts:,ediff:,ediffg:,nelm:,ibrion:,potim:,isif:,nsw:,lreal:,lwave:,lcharg:,lorbit:,ncore: -n 'example.bash' -- "$@"`
+
+if [ $? != 0 ]; then
+    echo "Error parsing arguments." >&2
+    exit 1
+fi
+
+# Note the quotes around `$TEMP': they are essential!
+eval set -- "$TEMP"
+
+# Extract options
+while true; do
+    case "$1" in
+        -h|--help)
+            usage
+            exit 0;;
+	--write-file)
+	    write_file="$2"; shift 2;;
+        --read-file)
+            read_file="$2"; shift 2;;
+        --format)
+            format="$2"; shift 2;;
+        --xc)
+            xc="$2"; shift 2;;
+        --prec)
+            prec="$2"; shift 2;;
+        --algo)
+            algo="$2"; shift 2;;
+        --ismear)
+            ismear="$2"; shift 2;;
+        --sigma)
+            sigma="$2"; shift 2;;
+        --encut)
+            encut="$2"; shift 2;;
+        --kpts)
+            kpts="$2"; shift 2;;
+        --ediff)
+            ediff="$2"; shift 2;;
+        --ediffg)
+            ediffg="$2"; shift 2;;
+        --nelm)
+            nelm="$2"; shift 2;;
+        --ibrion)
+            ibrion="$2"; shift 2;;
+        --potim)
+            potim="$2"; shift 2;;
+        --isif)
+            isif="$2"; shift 2;;
+        --nsw)
+            nsw="$2"; shift 2;;
+        --lreal)
+            lreal="$2"; shift 2;;
+        --lwave)
+            lwave="$2"; shift 2;;
+        --lcharg)
+            lcharg="$2"; shift 2;;
+        --lorbit)
+            lorbit="$2"; shift 2;;
+        --ncore)
+            ncore="$2"; shift 2;;
+        --) shift; break;;
+        *) echo "Internal error!"; exit 1;;
+    esac
+done
+
+# rest of the script here
+# Generate python file
+cat > $write_file << EOF
+from ase import Atoms
+from ase.io import read, write
+from ase.calculators.vasp import Vasp
+
+atoms = read('$read_file', format='$format')
+
+calc = Vasp(
+    xc='$xc',
+    prec='$prec',
+    algo='$algo',
+    ismear=$ismear,
+    sigma=$sigma,
+    encut=$encut,
+    kpts=$kpts,
+    ediff=$ediff,
+    ediffg=$ediffg,
+    nelm=$nelm,
+    ibrion=$ibrion,
+    potim=$potim,
+    isif=$isif,
+    nsw=$nsw,
+    lreal='$lreal',
+    lwave=$lwave,
+    lcharg=$lcharg,
+    lorbit=$lorbit,
+    ncore=$ncore,
+)
+
+atoms.set_calculator(calc)
+
+atoms.get_potential_energy()
+EOF

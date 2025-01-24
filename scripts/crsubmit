@@ -1,0 +1,114 @@
+#!/usr/bin/python3
+
+import argparse
+import textwrap
+
+def generate_vasp_ase_code_block(executable, array=None):
+    """
+    Generate the code block for a VASP run invoked via an ASE script (Python).
+    If array is provided, we'll add a `cd "${SLURM_ARRAY_TASK_ID}"` before the run.
+    """
+    cd_line = 'cd "${SLURM_ARRAY_TASK_ID}"\n' if array else ''
+    return textwrap.dedent(f"""
+{cd_line}rm -rf $HOME/.cache/lmod
+module purge
+module use /home/groups/da_mm/modules
+export MM_APPS_ROOT=/home/groups/da_mm/apps
+export MM_MODULES_ROOT=/home/groups/da_mm/modules
+module load vasp_vtst
+export VASP_SCRIPT=/home/as41vomu/vasp/run_vasp.py
+export VASP_PP_PATH=/home/as41vomu/vasp/mypps
+echo $VASP_SCRIPT
+echo $VASP_PP_PATH
+echo $HOME
+/work/scratch/as41vomu/mambaforge/envs/atomic/bin/python {executable}
+exit_code=$?
+echo ""
+echo "Executable 'vasp' finished with exit code $exit_code"
+""").strip()
+
+def generate_vasp_code_block(array=None):
+    """
+    Generate the code block for a direct VASP run (vasp_std).
+    If array is provided, we'll add a `cd "${SLURM_ARRAY_TASK_ID}"` before the run.
+    """
+    cd_line = 'cd "${SLURM_ARRAY_TASK_ID}"\n' if array else ''
+    return textwrap.dedent(f"""
+{cd_line}rm -rf $HOME/.cache/lmod
+module purge
+module use /home/groups/da_mm/modules
+export MM_APPS_ROOT=/home/groups/da_mm/apps
+export MM_MODULES_ROOT=/home/groups/da_mm/modules
+module load vasp_vtst
+srun /work/groups/da_mm/apps/vasp_vtst/6.3.0/bin/vasp_std
+""").strip()
+
+def generate_submit_sh(cores, hours, job_name, account, calc_type, executable, array):
+    """
+    Generate submit.sh content and write to file.
+    
+    :param cores: Number of cores
+    :param hours: Time in hours (float)
+    :param job_name: SLURM job name
+    :param account: SLURM account
+    :param calc_type: "vasp_ase" or "vasp"
+    :param executable: For calc_type="vasp_ase", the Python script to be run
+    :param array: String specifying array range (e.g., "1-800"), or None
+    """
+    # Convert hours (which might be fractional) into HH:MM:SS
+    hrs, mins = divmod(hours * 60, 60)
+    time_format = f"{int(hrs):02d}:{int(mins):02d}:00"
+
+    # Select the appropriate code block
+    if calc_type == "vasp_ase":
+        code_block = generate_vasp_ase_code_block(executable, array=array)
+    else:  # calc_type == "vasp"
+        code_block = generate_vasp_code_block(array=array)
+
+    # Build the SBATCH directives
+    sbatch_lines = textwrap.dedent(f"""\
+    #!/bin/bash
+    #SBATCH --exclusive
+    #SBATCH --mail-type=None
+    #SBATCH --mem-per-cpu=3800
+    #SBATCH --account={account}
+    #SBATCH -C avx512
+    #SBATCH -e err.%j
+    #SBATCH -o out.%j
+    #SBATCH -J {job_name}
+    #SBATCH -n {cores}
+    #SBATCH -t {time_format}
+    """)
+
+    # If the user provided an array argument, add SBATCH directives for the array
+    if array:
+        sbatch_lines += textwrap.dedent(f"""\
+        #SBATCH --array={array}
+        #SBATCH -o %a/out.%A_%a
+        #SBATCH -e %a/err.%A_%a
+        """)
+
+    content = sbatch_lines + "\n" + code_block + "\n"
+
+    with open('submit.sh', 'w') as f:
+        f.write(content)
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Generate a submit.sh file for specific configurations.",
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument("-c", "--cores", type=int, default=96, help="Number of cores.")
+    parser.add_argument("-t", "--hours", type=float, default=24, help="Duration in hours.")
+    parser.add_argument("-j", "--job", type=str, default="DFT_calc", help="Job name.")
+    parser.add_argument("-a", "--account", type=str, default="p0020994", help="Account name.")
+    parser.add_argument("-ct", "--calc_type", type=str, choices=["vasp_ase", "vasp"], required=True, help="Calculation type.")
+    parser.add_argument("-e", "--executable", type=str, default="run.py", help="Executable file for vasp_ase.")
+    parser.add_argument("-A", "--array", type=str, default=None,
+                        help="Job array range (e.g. '1-800'). If provided, enables SLURM array directives.")
+    
+    args = parser.parse_args()
+    generate_submit_sh(args.cores, args.hours, args.job, args.account, args.calc_type, args.executable, args.array)
+
+if __name__ == "__main__":
+    main()

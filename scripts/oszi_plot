@@ -1,0 +1,49 @@
+#!/home/as41vomu/miniconda3/bin/python
+
+import argparse
+import matplotlib.pyplot as plt
+
+def read_oszicar(file_path, skip_steps):
+    energies = []
+    with open(file_path, 'r') as f:
+        scf_energies = []
+        for line_no, line in enumerate(f):
+            if "DAV:" in line:
+                tokens = line.split()
+                energy = float(tokens[2])  # Assuming the energy is the third column
+                # Skip first few steps based on skip_steps
+                if line_no >= skip_steps:
+                    scf_energies.append(energy)
+            elif len(scf_energies) > 0:
+                energies.append(scf_energies)
+                scf_energies = []  # Start a new SCF cycle
+        # Handle the last SCF cycle
+        if len(scf_energies) > 0:
+            energies.append(scf_energies)
+    return energies
+
+def plot_energies(energies):
+    plt.figure(figsize=(10,6))  # Create a larger plot
+    total_steps = 0
+    for i, scf_energies in enumerate(energies):
+        steps = range(total_steps, total_steps + len(scf_energies))
+        plt.plot(steps, scf_energies, '--o', label=f"SCF cycle {i + 1}")  # 'o' specifies bigger dots for the plot
+        total_steps += len(scf_energies)
+    plt.xlabel('Step', fontsize=22)
+    plt.ylabel('Energy', fontsize=22)
+    plt.title('Energy change in SCF cycles', fontsize=22)
+    plt.xticks(fontsize=22)  # Increase x-axis tick font size
+    plt.yticks(fontsize=22)  # Increase y-axis tick font size
+    plt.show()
+
+def main():
+    parser = argparse.ArgumentParser(description='Plot energy changes from an OSZICAR file.')
+    parser.add_argument('--file_path', type=str, default='OSZICAR', help='Path to the OSZICAR file')
+    parser.add_argument('--skip_steps', type=int, default=5, help='Number of steps to skip from the first iteration')
+    args = parser.parse_args()
+
+    energies = read_oszicar(args.file_path, args.skip_steps)
+    plot_energies(energies)
+
+if __name__ == "__main__":
+    main()

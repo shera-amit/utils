@@ -1,0 +1,55 @@
+units metal
+dimension 3
+boundary p p p
+atom_style atomic
+read_data structure.inp
+include potential.inp
+
+# Variables
+variable dumptime equal 5000
+variable heating_rate equal 0.5  # Heating rate in K/ps
+variable cooling_rate equal 0.5  # Cooling rate in K/ps
+variable initial_temp equal 300  # Initial temperature in K
+variable final_temp equal 800    # Final temperature in K
+variable npt_steps equal 200000  # Number of steps for NPT simulation at final temperature
+variable heating_steps equal (${final_temp}-${initial_temp})/(${heating_rate}*${timestep})  # Number of steps for heating
+variable cooling_steps equal (${final_temp}-${initial_temp})/(${cooling_rate}*${timestep})  # Number of steps for cooling
+
+# Define thermo output
+thermo_style custom step temp pe ke etotal press vol lx ly lz xy xz yz pxx pyy pzz pxy pxz pyz cella cellb cellc cellalpha cellbeta cellgamma
+thermo 100
+thermo_modify format float %20.15g
+
+
+timestep 0.001
+
+# Perform initial box relaxation
+dump 1 all custom ${dumptime} dump_box_relax.out id type xsu ysu zsu fx fy fz vx vy vz
+fix 1 all box/relax aniso 0.0 vmax 0.001 min_style cg
+minimize 0 1.0e-6 10000 100000
+unfix 1
+
+# Set initial velocities
+velocity all create (2*${initial_temp}) 12345 dist gaussian
+
+# NPT simulation heating from initial temperature to final temperature
+dump 2 all custom ${dumptime} dump_npt_heating.out id type xsu ysu zsu fx fy fz vx vy vz
+fix 2 all npt temp ${initial_temp} ${final_temp} 0.1 x 0.0 0.0 1.0 y 0.0 0.0 1.0 z 0.0 0.0 1.0
+run $((${final_temp}-${initial_temp})/${heating_rate}*${timestep})
+unfix 2
+
+# NPT simulation at final temperature
+dump 3 all custom ${dumptime} dump_npt_final.out id type xsu ysu zsu fx fy fz vx vy vz
+fix 3 all npt temp ${final_temp} ${final_temp} 0.1 x 0.0 0.0 1.0 y 0.0 0.0 1.0 z 0.0 0.0 1.0
+run ${npt_steps}
+unfix 3
+
+# NPT simulation cooling from final temperature to initial temperature
+dump 4 all custom ${dumptime} dump_npt_cooling.out id type xsu ysu zsu fx fy fz vx vy vz
+fix 4 all npt temp ${final_temp} ${initial_temp} 0.1 x 0.0 0.0 1.0 y 0.0 0.0 1.0 z 0.0 0.0 1.0
+run ${cooling_steps}
+unfix 4
+
+# Output final state
+write_data final.data
+write_restart final.restart

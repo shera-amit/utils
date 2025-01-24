@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# Extract all job IDs
+job_ids=$(squeue -u $USER | awk 'NR>1 {print $1}')
+
+# Loop through each job ID and print the working directory
+for job_id in $job_ids; do
+    work_dir=$(scontrol show job $job_id | grep "WorkDir" | awk -F'=' '{print $2}')
+    if [[ $work_dir == *"/work/scratch/as41vomu/PhD/"* ]]; then
+        base_path="/work/scratch/as41vomu/PhD/"
+        rest_of_path="${work_dir#$base_path}"
+        colored_rest_of_path="\033[1;32m$rest_of_path\033[0m"
+        colored_dir="$base_path$colored_rest_of_path"
+    else
+        colored_dir=$work_dir
+    fi
+    echo -e "$job_id\t$colored_dir"
+done
+

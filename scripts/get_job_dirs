@@ -1,0 +1,36 @@
+#!/bin/bash
+
+# Get squeue output for current user
+squeue_output=$(squeue -u $USER)
+
+# Print the squeue output for debugging
+
+# Extract job IDs, statuses, and working directories
+job_info=$(echo "$squeue_output" | awk 'NR>1 {print $1, $5}')
+
+# Print the extracted job info for debugging
+
+# Loop through each job ID and print the working directory along with job status
+echo -e "Job ID\t\tWorking Directory\t\t\t\tStatus"
+while IFS= read -r job; do
+    job_id=$(echo "$job" | awk '{print $1}')
+    job_status=$(echo "$job" | awk '{print $2}')
+    
+    if [ "$job_status" == "RUNNING" ]; then
+        colored_status="\033[1;31mRunning\033[0m"
+    else
+        colored_status="\033[1;34mPending\033[0m"
+    fi
+    
+    work_dir=$(scontrol show job "$job_id" | grep "WorkDir" | awk -F'=' '{print $2}')
+    if [[ $work_dir == *"/work/scratch/as41vomu/PhD/"* ]]; then
+        base_path="/work/scratch/as41vomu/PhD/"
+        rest_of_path="${work_dir#$base_path}"
+        colored_rest_of_path="\033[1;32m$rest_of_path\033[0m"
+        colored_dir="$base_path$colored_rest_of_path"
+    else
+        colored_dir=$work_dir
+    fi
+    echo -e "$job_id\t$colored_dir\t$colored_status"
+done <<< "$job_info"
+

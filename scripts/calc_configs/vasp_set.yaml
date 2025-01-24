@@ -1,0 +1,21 @@
+hse06_relax:
+  prec: accurate
+  algo: D
+  lreal: false
+  lwave: false
+  lorbit: 0
+  encut: 650
+  xc: pbe
+  ediff: 0.000001
+  ediffg: -0.01
+  lhfcalc: true
+  hfscreen: 0.2
+  ismear: 0
+  sigma: 0.1
+  nsw: 100
+  ibrion: 2
+  isif: 3
+  ncore: 8
+  time: 0.4
+  nelm: 100
+

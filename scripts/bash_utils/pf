@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Default number of lines to show
+num_lines=3
+
+# Check if the first argument is a number
+if [[ $1 =~ ^[0-9]+$ ]]; then
+    num_lines=$1
+    shift
+fi
+
+# Process each remaining argument as a file or glob pattern
+for file in "$@"; do 
+    echo -e "\033[0;36m========== Processing $file ==========\033[0m"
+    grep -H "FORCES:" "$file" | tail -n $num_lines | awk '{ printf "%s %s %s %s %s \033[31m%s\033[0m %s\n", $1, $2, $3, $4, $5, $6, $7 }'; 
+done
+

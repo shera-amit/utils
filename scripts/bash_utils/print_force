@@ -1,0 +1,4 @@
+#!/bin/bash
+
+awk '/TOTAL-FORCE/,/total drift/' OUTCAR
+

@@ -1,0 +1,71 @@
+#!/home/as41vomu/miniconda3/bin/python
+
+import re
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import glob
+import sys
+
+plt.style.use('shera')  # 'shera' style is not available in matplotlib by default. Please replace with your custom style if available.
+
+def parse_outcar_forces_v6(outcar_files):
+    force_data = []
+    for outcar_file in outcar_files:
+        with open(outcar_file, 'r') as f:
+            lines = f.readlines()
+
+        force_start_pattern = re.compile(r'POSITION')
+        forces = []
+        step_forces = []
+        for i, line in enumerate(lines):
+            if force_start_pattern.search(line):
+                j = i + 2
+                while True:
+                    j += 1
+                    if lines[j].strip() == '-----------------------------------------------------------------------------------':
+                        forces.append(step_forces)
+                        step_forces = []
+                        break
+                    else:
+                        force_vector = lines[j].split()[-3:]
+                        if all(re.match(r'-?\d+\.\d+', force) for force in force_vector):
+                            forces_float = [float(force) for force in force_vector]
+                            step_forces.append(np.linalg.norm(forces_float))
+        forces_df = pd.DataFrame(forces).transpose()
+        force_data.append(forces_df)
+    return force_data
+
+def plot_force_data(force_data, outcar_files):
+    for i, forces_df in enumerate(force_data):
+        min_force = forces_df.min(axis=0)
+        max_force = forces_df.max(axis=0)
+        average_force = forces_df.mean(axis=0)
+
+        # Create a new figure for each file
+        plt.figure(figsize=(10, 6))
+        plt.plot(average_force, marker='o', label='Average')
+        plt.plot(min_force, marker='o', label='Minimum')
+        plt.plot(max_force, marker='o', label='Maximum')
+        plt.title(f'Average, Min, and Max Total Force on Atoms Over Time in {outcar_files[i]}')
+        plt.xlabel('Time Step')
+        plt.ylabel('Force (eV/Angst)')
+        plt.grid(True)
+        plt.legend()
+
+    # Display all figures
+    plt.show()
+
+def main():
+    outcar_files = sys.argv[1:]  # Get the command-line arguments
+    if not outcar_files:  # Check if the list is empty
+        print("No OUTCAR files provided. Please specify the file path as a command line argument.")
+    else:
+        force_data = parse_outcar_forces_v6(outcar_files)
+        if all(df.empty for df in force_data):  # Check if all DataFrames in force_data are empty
+            print("No force data found in the OUTCAR files. Please check the file content.")
+        else:
+            plot_force_data(force_data, outcar_files)
+
+if __name__ == "__main__":
+    main()

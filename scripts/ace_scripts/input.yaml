@@ -1,0 +1,86 @@
+cutoff: 6.0 # cutoff for neighbour list construction
+seed: 155  # random seed
+
+#################################################################
+## Metadata section
+#################################################################
+metadata:
+  origin: "Automatically generated input"
+
+#################################################################
+## Potential definition section
+#################################################################
+potential:
+  deltaSplineBins: 0.001
+  elements: ['Ba','O', 'Ti']
+
+  embeddings:
+    ALL: {
+      npot: 'FinnisSinclairShiftedScaled',
+      fs_parameters: [ 1, 1, 1, 0.5],
+      ndensity: 2,
+    }
+
+  bonds:
+    ALL: {
+      radbase: SBessel,
+      radparameters: [ 5.25 ],
+      rcut: 5.0,
+      dcut: 0.01,
+      NameOfCutoffFunction: cos,
+    }
+
+  functions:
+    number_of_functions_per_element: 500
+    UNARY:   { nradmax_by_orders: [ 15, 6, 4, 3, 2, 2 ], lmax_by_orders: [ 0 , 3, 3, 2, 2, 1 ]}
+    BINARY:  { nradmax_by_orders: [ 15, 6, 3, 2, 2, 1 ], lmax_by_orders: [ 0 , 3, 2, 1, 1, 0 ]}
+    TERNARY: { nradmax_by_orders: [ 15, 3, 3, 2, 1 ],    lmax_by_orders: [ 0 , 2, 2, 1, 1 ], }
+    ALL:     { nradmax_by_orders: [ 15, 3, 2, 1, 1 ],    lmax_by_orders: [ 0 , 2, 2, 1, 1 ] }
+
+
+
+#################################################################
+## Dataset specification section
+#################################################################
+data:
+  filename: ./db10_final.pkl.gz       # force to read reference pickled dataframe from given file
+  test_size: 0.1
+  #test_filename: /work/scratch/le61woly/1_SiOx-Potential/database/testing/testing.SiOx.pckl.gzip
+
+#################################################################
+## Fit specification section
+#################################################################
+fit:
+  loss: { kappa: 0.1}
+  # if kappa: auto, then it will be determined from the variation of energy per atom and forces norms in train set
+
+  #weighting: { type: EnergyBasedWeightingPolicy, nfit: 100000, DElow: 0.8, DEup: 13.0, DE: 1.0, DF: 1.0,
+  #             wlow: None, energy: cohesive, #  "convex_hull" or "cohesive"
+  #             seed: 42
+  #           }
+
+
+  optimizer: BFGS # or L-BFGS
+
+  ## maximum number of minimize iterations
+  maxiter: 1500
+
+  ## additional options for scipy.minimize
+  #  options: {maxcor: 100}
+
+  ## Automatically find the smallest interatomic distance in dataset  and set inner cutoff based on this
+  repulsion: auto
+
+  #ladder_step: [5,0.001]
+  #ladder_type: power_order
+
+#################################################################
+## Backend specification section
+#################################################################
+backend:
+  evaluator: tensorpot
+  batch_size: 50
+  batch_size_reduction: True
+  batch_size_reduction_factor: 1.3
+  display_step: 50
+
